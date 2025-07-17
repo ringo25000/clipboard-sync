@@ -63,6 +63,13 @@ async def get_latest():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
+    
+    # Send latest clipboard to this client only
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT content FROM clipboard ORDER BY id DESC LIMIT 1")
+        row = await cursor.fetchone()
+        if row:
+            await websocket.send_json({"content": row[0]})
     try:
         while True:
             await websocket.receive_text()  # Keep the connection open
