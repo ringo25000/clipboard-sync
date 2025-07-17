@@ -4,7 +4,7 @@ import asyncio
 
 
 SERVER_URL = "http://localhost:8000/save"
-POLL_INTERVAL = 1  # in seconds
+POLL_INTERVAL = 0.7  # in seconds
 
 
 async def poll_clipboard():
