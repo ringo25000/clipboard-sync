@@ -3,7 +3,7 @@ import httpx
 import asyncio
 
 
-SERVER_URL = "http://localhost:8000/save"
+SERVER_URL = "http://192.168.50.98/save"
 POLL_INTERVAL = 0.7  # in seconds
 
 
