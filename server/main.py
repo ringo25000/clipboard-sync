@@ -1,11 +1,29 @@
 # server/main.py
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from database import init_db, DB_PATH
 from models import ClipboardEntry, ClipboardEntryOut
 import aiosqlite
+from typing import List
 
 app = FastAPI()
+
+class WebSocketManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            await connection.send_json(message)
+
+manager = WebSocketManager()
 
 # run init_db() once when the server starts + 
 @app.on_event("startup")
@@ -25,6 +43,7 @@ async def save_clipboard(entry: ClipboardEntry):
             (entry.content,)
         )
         await db.commit()
+        await manager.broadcast({"content": entry.content})
     return {"status": "saved"}
 
 @app.get("/latest", response_model=ClipboardEntryOut)
@@ -40,3 +59,12 @@ async def get_latest():
     else:
         return ClipboardEntryOut(id=0, content="", timestamp=None)
 
+# WebSocket endpoint to receive real-time updates
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()  # Keep the connection open
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
